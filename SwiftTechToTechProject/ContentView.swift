@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 // Model
 struct Records: Codable {
@@ -52,7 +51,7 @@ enum CustomError: Error {
 // Request Factory
 protocol RequestFactoryProtocol {
     func createRequest(urlStr: String) -> URLRequest
-    func getActivitiesList(callback: @escaping ((errorType: CustomError?, errorMessage: String?), [Activity]?) -> Void)
+    func getActivitiesList(completion: @escaping (Result<[Activity], CustomError>) -> Void)
 }
 
 class RequestFactory: RequestFactoryProtocol {
@@ -69,14 +68,14 @@ class RequestFactory: RequestFactoryProtocol {
         return request
     }
 
-    func getActivitiesList(callback: @escaping ((errorType: CustomError?, errorMessage: String?), [Activity]?) -> Void) {
+    func getActivitiesList(completion: @escaping (Result<[Activity], CustomError>) -> Void) {
         let activitiesUrlStr = "https://api.airtable.com/v0/apps3Rtl22fQOI9Ph/%F0%9F%93%86%20Schedule"
         let session = URLSession(configuration: .default)
 
         let task = session.dataTask(with: createRequest(urlStr: activitiesUrlStr)) { data, response, error in
             // Handle data error
             guard error == nil, let data = data else {
-                callback((CustomError.requestError, error?.localizedDescription ?? "Unknown error"), nil)
+                completion(.failure(CustomError.requestError))
                 return
             }
             // Log response body
@@ -85,26 +84,31 @@ class RequestFactory: RequestFactoryProtocol {
             }
             // Handle http error
             guard let responseHttp = response as? HTTPURLResponse else {
-                callback((CustomError.requestError, "No HTTP response"), nil)
+                completion(.failure(CustomError.requestError))
                 return
             }
             // Handle status code error
             guard responseHttp.statusCode == 200 else {
-                callback((CustomError.statusCodeError, "Status code: \(responseHttp.statusCode)"), nil)
+                completion(.failure(CustomError.statusCodeError))
                 return
             }
             // Handle parsing error
             guard let result = try? JSONDecoder().decode(Records.self, from: data) else {
-                callback((CustomError.parsingError, "Parsing error"), nil)
+                completion(.failure(CustomError.parsingError))
                 return
             }
             // If everything went good
-            callback((nil, nil), result.records)
+            if let activities = result.records {
+                completion(.success(activities))
+            } else {
+                completion(.failure(CustomError.parsingError))
+            }
         }
         task.resume()
     }
 }
 
+// SwiftUI
 
 struct ContentView: View {
     @ObservedObject var viewModel = EventViewModel()
@@ -168,33 +172,33 @@ struct ActivityDetail: View {
         .navigationTitle("Activity Detail")
     }
 }
+
+
 class EventViewModel: ObservableObject {
     @Published var day1Schedule: [Activity] = []
     @Published var day2Schedule: [Activity] = []
-    
-    private var cancellables: Set<AnyCancellable> = []
 
     func fetchActivities(for day: Int) {
         let requestFactory = RequestFactory()
 
-        requestFactory.getActivitiesList { (errorHandle, activities) in
-            if let errorType = errorHandle.errorType, let errorMessage = errorHandle.errorMessage {
-                print("Error: \(errorType), Message: \(errorMessage)")
-            } else if let activityList = activities {
+        requestFactory.getActivitiesList { result in
+            switch result {
+            case .success(let activities):
                 DispatchQueue.main.async {
                     if day == 1 {
-                        self.day1Schedule = activityList
+                        self.day1Schedule = activities
                     } else if day == 2 {
-                        self.day2Schedule = activityList
+                        self.day2Schedule = activities
                     }
                 }
-            } else {
-                print("Houston, we've got a problem.")
+            case .failure(let error):
+                print("Error: \(error)")
             }
         }
     }
 }
 
+// DateFormatter to format date for display
 let dateFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateFormat = "MM/dd/yyyy hh:mma"
