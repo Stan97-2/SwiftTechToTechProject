@@ -1,47 +1,110 @@
-//
-//  ContentView.swift
-//  SwiftTechToTechProject
-//
-//  Created by goldorak on 22/01/2024.
-//
-
 import SwiftUI
+import Combine
 
-struct Activity: Identifiable {
-    var id = UUID()
-    var title: String
-    var type: String
-    var startDate: Date
-    var endDate: Date
-    var location: String
-    var speakers: [String]
-    var notes: String
+// Model
+struct Records: Codable {
+    let records: [Activity]?
+}
 
-    // Additional init method for creating Activity with Date
-    init(title: String, type: String, startDate: Date, endDate: Date, location: String, speakers: [String], notes: String) {
-        self.title = title
-        self.type = type
-        self.startDate = startDate
-        self.endDate = endDate
-        self.location = location
-        self.speakers = speakers
-        self.notes = notes
+struct Activity: Codable, Identifiable {
+    let id: String
+    let fields: Fields
+}
+
+struct Fields: Codable {
+    let activity: String
+    let startDate: String
+    let endDate: String
+    let location: String
+    let speakers: [String]?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case activity = "Activity"
+        case startDate = "Start"
+        case endDate = "End"
+        case location = "Location"
+        case speakers = "Speaker(s)"
+        case notes = "Notes"
     }
 }
 
-class EventViewModel: ObservableObject {
-    @Published var day1Schedule: [Activity] = [
-        Activity(title: "Welcome Breakfast", type: "Meal", startDate: Date(), endDate: Date(), location: "President's Dining Hall", speakers: ["Belinda Chen", "Deepa Vartak"], notes: "Belinda is going to need the projector"),
-        Activity(title: "Morning Keynote", type: "Keynote", startDate: Date(), endDate: Date(), location: "Grand Ballroom", speakers: ["Katina Frey"], notes: ""),
-        // Add more activities for day 1 as needed
-    ]
-
-    @Published var day2Schedule: [Activity] = [
-        Activity(title: "Lunch Panel", type: "Panel", startDate: Date(), endDate: Date(), location: "Conference Room A", speakers: ["John Smith", "Alice Johnson"], notes: "Panel discussion on cybersecurity trends"),
-        Activity(title: "Closing Remarks", type: "Keynote", startDate: Date(), endDate: Date(), location: "Main Hall", speakers: ["Robert Johnson"], notes: ""),
-        // Add more activities for day 2 as needed
-    ]
+struct Response: Codable {
+    let id: String
 }
+
+struct ErrorResponse: Codable {
+    let error: String
+}
+
+enum RequestType: String {
+    case get = "GET"
+    case post = "POST"
+    case delete = "DELETE"
+}
+
+enum CustomError: Error {
+    case requestError
+    case statusCodeError
+    case parsingError
+}
+
+// Request Factory
+protocol RequestFactoryProtocol {
+    func createRequest(urlStr: String) -> URLRequest
+    func getActivitiesList(callback: @escaping ((errorType: CustomError?, errorMessage: String?), [Activity]?) -> Void)
+}
+
+class RequestFactory: RequestFactoryProtocol {
+    internal func createRequest(urlStr: String) -> URLRequest {
+        let url: URL = URL(string: urlStr)!
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 100
+        request.httpMethod = RequestType.get.rawValue
+
+        let accessToken = "patikQ2NLt8ZuefWF.bab4360644fa68db943fec3ff9db7a0bb990674f092136422b3a0be9212e229d"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        return request
+    }
+
+    func getActivitiesList(callback: @escaping ((errorType: CustomError?, errorMessage: String?), [Activity]?) -> Void) {
+        let activitiesUrlStr = "https://api.airtable.com/v0/apps3Rtl22fQOI9Ph/%F0%9F%93%86%20Schedule"
+        let session = URLSession(configuration: .default)
+
+        let task = session.dataTask(with: createRequest(urlStr: activitiesUrlStr)) { data, response, error in
+            // Handle data error
+            guard error == nil, let data = data else {
+                callback((CustomError.requestError, error?.localizedDescription ?? "Unknown error"), nil)
+                return
+            }
+            // Log response body
+            if let dataStr = String(data: data, encoding: .utf8) {
+                print("Response Body: \(dataStr)")
+            }
+            // Handle http error
+            guard let responseHttp = response as? HTTPURLResponse else {
+                callback((CustomError.requestError, "No HTTP response"), nil)
+                return
+            }
+            // Handle status code error
+            guard responseHttp.statusCode == 200 else {
+                callback((CustomError.statusCodeError, "Status code: \(responseHttp.statusCode)"), nil)
+                return
+            }
+            // Handle parsing error
+            guard let result = try? JSONDecoder().decode(Records.self, from: data) else {
+                callback((CustomError.parsingError, "Parsing error"), nil)
+                return
+            }
+            // If everything went good
+            callback((nil, nil), result.records)
+        }
+        task.resume()
+    }
+}
+
 
 struct ContentView: View {
     @ObservedObject var viewModel = EventViewModel()
@@ -63,8 +126,11 @@ struct ContentView: View {
 
                 List(selectedDay == 1 ? viewModel.day1Schedule : viewModel.day2Schedule) { activity in
                     NavigationLink(destination: ActivityDetail(activity: activity)) {
-                        Text("\(activity.title) - \(activity.startDate, formatter: dateFormatter)")
+                        Text("\(activity.fields.activity) - \(activity.fields.startDate)")
                     }
+                }
+                .onAppear {
+                    viewModel.fetchActivities(for: selectedDay)
                 }
             }
             .navigationTitle("Event Schedule")
@@ -77,35 +143,68 @@ struct ActivityDetail: View {
 
     var body: some View {
         VStack {
-            Text(activity.title)
+            Text(activity.fields.activity)
                 .font(.title)
                 .padding()
 
-            Text("Type: \(activity.type)")
+            Text("Type: \(activity.fields.activity)")
                 .padding()
 
-            Text("Start Date: \(activity.startDate, formatter: dateFormatter)")
+            Text("Start Date: \(activity.fields.startDate)")
                 .padding()
 
-            Text("End Date: \(activity.endDate, formatter: dateFormatter)")
+            Text("End Date: \(activity.fields.endDate)")
                 .padding()
 
-            Text("Location: \(activity.location)")
+            Text("Location: \(activity.fields.location)")
                 .padding()
 
-            Text("Speakers: \(activity.speakers.joined(separator: ", "))")
+            Text("Speakers: \(activity.fields.speakers?.joined(separator: ", ") ?? "")")
                 .padding()
 
-            Text("Notes: \(activity.notes)")
+            Text("Notes: \(activity.fields.notes ?? "")")
                 .padding()
         }
         .navigationTitle("Activity Detail")
     }
 }
+class EventViewModel: ObservableObject {
+    @Published var day1Schedule: [Activity] = []
+    @Published var day2Schedule: [Activity] = []
+    
+    private var cancellables: Set<AnyCancellable> = []
 
-// DateFormatter to format date for display
+    func fetchActivities(for day: Int) {
+        let requestFactory = RequestFactory()
+
+        requestFactory.getActivitiesList { (errorHandle, activities) in
+            if let errorType = errorHandle.errorType, let errorMessage = errorHandle.errorMessage {
+                print("Error: \(errorType), Message: \(errorMessage)")
+            } else if let activityList = activities {
+                DispatchQueue.main.async {
+                    if day == 1 {
+                        self.day1Schedule = activityList
+                    } else if day == 2 {
+                        self.day2Schedule = activityList
+                    }
+                }
+            } else {
+                print("Houston, we've got a problem.")
+            }
+        }
+    }
+}
+
 let dateFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateFormat = "MM/dd/yyyy hh:mma"
     return formatter
 }()
+
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
+
