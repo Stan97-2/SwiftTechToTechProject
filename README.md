@@ -1,0 +1,1 @@
+https://www.bing.com/images/create/crc3a9e-une-icone-pour-une-application-mobile-ios-ave/1-65b7bda6ccbb42f6b2f7d2a5810e1294?id=SGP2QOdoA%2fMGJGdFNbUj9g%3d%3d&view=detailv2&idpp=genimg&FORM=GCRIDP&mode=overlay
