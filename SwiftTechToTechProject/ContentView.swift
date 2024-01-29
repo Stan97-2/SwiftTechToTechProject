@@ -128,19 +128,32 @@ struct ContentView: View {
                     .font(.title)
                     .padding()
 
-                List(selectedDay == 1 ? viewModel.day1Schedule : viewModel.day2Schedule) { activity in
-                    NavigationLink(destination: ActivityDetail(activity: activity)) {
-                        Text("\(activity.fields.activity) - \(activity.fields.startDate)")
+                if selectedDay == 1 {
+                    List(viewModel.day1Schedule) { activity in
+                        NavigationLink(destination: ActivityDetail(activity: activity)) {
+                            Text("\(activity.fields.activity) - \(activity.fields.startDate)")
+                        }
                     }
-                }
-                .onAppear {
-                    viewModel.fetchActivities(for: selectedDay)
+                } else if selectedDay == 2 {
+                    List(viewModel.day2Schedule) { activity in
+                        NavigationLink(destination: ActivityDetail(activity: activity)) {
+                            Text("\(activity.fields.activity) - \(activity.fields.startDate)")
+                        }
+                    }
                 }
             }
             .navigationTitle("Event Schedule")
+            .onAppear {
+                viewModel.fetchActivities(for: selectedDay)
+            }
+            .onChange(of: selectedDay) { newDay in
+                viewModel.fetchActivities(for: newDay)
+            }
         }
     }
 }
+
+
 
 struct ActivityDetail: View {
     var activity: Activity
@@ -185,10 +198,30 @@ class EventViewModel: ObservableObject {
             switch result {
             case .success(let activities):
                 DispatchQueue.main.async {
+                    // Filter activities based on the selected day
+                    let filteredActivities = activities.filter { activity in
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+
+                        guard let startDate = dateFormatter.date(from: activity.fields.startDate) else {
+                            return false
+                        }
+
+                        let day1Date = dateFormatter.date(from: "2024-02-08T00:00:00.000Z")
+                        let day2Date = dateFormatter.date(from: "2024-02-09T00:00:00.000Z")
+
+                        if day == 1 && Calendar.current.isDate(startDate, inSameDayAs: day1Date ?? Date()) {
+                            return true
+                        } else if day == 2 && Calendar.current.isDate(startDate, inSameDayAs: day2Date ?? Date()) {
+                            return true
+                        }
+                        return false
+                    }
+
                     if day == 1 {
-                        self.day1Schedule = activities
+                        self.day1Schedule = filteredActivities
                     } else if day == 2 {
-                        self.day2Schedule = activities
+                        self.day2Schedule = filteredActivities
                     }
                 }
             case .failure(let error):
@@ -197,6 +230,8 @@ class EventViewModel: ObservableObject {
         }
     }
 }
+
+
 
 // DateFormatter to format date for display
 let dateFormatter: DateFormatter = {
