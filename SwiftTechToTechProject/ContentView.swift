@@ -192,7 +192,6 @@ struct ActivityDetail: View {
             KeyValueRow(key: "End Date", value: activity.fields.endDate)
             KeyValueRow(key: "Location", value: activity.fields.location)
             KeyValueRow(key: "Speakers", value: activity.fields.speakers?.joined(separator: ", ") ?? "")
-            KeyValueRow(key: "Notes", value: activity.fields.notes ?? "")
         }
         .padding()
         .navigationTitle("Activity Detail")
