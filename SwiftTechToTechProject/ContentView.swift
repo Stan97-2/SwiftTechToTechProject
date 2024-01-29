@@ -129,31 +129,30 @@ struct ContentView: View {
                     .padding()
 
                 if selectedDay == 1 {
-                    List(viewModel.day1Schedule) { activity in
+                    List(viewModel.day1Schedule.sorted(by: { $0.fields.startDate < $1.fields.startDate })) { activity in
                         NavigationLink(destination: ActivityDetail(activity: activity)) {
                             VStack(alignment: .leading) {
                                 Text(activity.fields.activity)
                                     .font(.headline)
-                                Text("\(activity.fields.startDate)")
+                                Text("\(formatDate(activity.fields.startDate))")
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                             }
                         }
                     }
                 } else if selectedDay == 2 {
-                    List(viewModel.day2Schedule) { activity in
+                    List(viewModel.day2Schedule.sorted(by: { $0.fields.startDate < $1.fields.startDate })) { activity in
                         NavigationLink(destination: ActivityDetail(activity: activity)) {
                             VStack(alignment: .leading) {
                                 Text(activity.fields.activity)
                                     .font(.headline)
-                                Text("\(activity.fields.startDate)")
+                                Text("\(formatDate(activity.fields.startDate))")
                                     .font(.subheadline)
                                     .foregroundColor(.gray)
                             }
                         }
                     }
                 }
-
             }
             .navigationTitle("Event Schedule")
             .onAppear {
@@ -167,6 +166,16 @@ struct ContentView: View {
 }
 
 
+func formatDate(_ dateString: String) -> String {
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+    if let date = dateFormatter.date(from: dateString) {
+        dateFormatter.dateFormat = "HH:mm"
+        return dateFormatter.string(from: date)
+    } else {
+        return "Invalid Date"
+    }
+}
 
 struct ActivityDetail: View {
     var activity: Activity
@@ -258,7 +267,7 @@ class EventViewModel: ObservableObject {
     }
 }
 
-
+ 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
