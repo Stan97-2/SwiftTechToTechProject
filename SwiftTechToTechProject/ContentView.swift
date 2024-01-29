@@ -188,8 +188,8 @@ struct ActivityDetail: View {
                 .padding(.bottom, 5)
 
             KeyValueRow(key: "Type", value: activity.fields.activity)
-            KeyValueRow(key: "Start Date", value: activity.fields.startDate)
-            KeyValueRow(key: "End Date", value: activity.fields.endDate)
+            KeyValueRow(key: "Start", value: formatDate(activity.fields.startDate))
+            KeyValueRow(key: "End", value: formatDate(activity.fields.endDate))
             KeyValueRow(key: "Location", value: activity.fields.location)
             KeyValueRow(key: "Speakers", value: activity.fields.speakers?.joined(separator: ", ") ?? "")
         }
