@@ -131,16 +131,29 @@ struct ContentView: View {
                 if selectedDay == 1 {
                     List(viewModel.day1Schedule) { activity in
                         NavigationLink(destination: ActivityDetail(activity: activity)) {
-                            Text("\(activity.fields.activity) - \(activity.fields.startDate)")
+                            VStack(alignment: .leading) {
+                                Text(activity.fields.activity)
+                                    .font(.headline)
+                                Text("\(activity.fields.startDate)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
                         }
                     }
                 } else if selectedDay == 2 {
                     List(viewModel.day2Schedule) { activity in
                         NavigationLink(destination: ActivityDetail(activity: activity)) {
-                            Text("\(activity.fields.activity) - \(activity.fields.startDate)")
+                            VStack(alignment: .leading) {
+                                Text(activity.fields.activity)
+                                    .font(.headline)
+                                Text("\(activity.fields.startDate)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
                         }
                     }
                 }
+
             }
             .navigationTitle("Event Schedule")
             .onAppear {
@@ -159,32 +172,46 @@ struct ActivityDetail: View {
     var activity: Activity
 
     var body: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 10) {
             Text(activity.fields.activity)
                 .font(.title)
-                .padding()
+                .fontWeight(.bold)
+                .padding(.bottom, 5)
 
-            Text("Type: \(activity.fields.activity)")
-                .padding()
-
-            Text("Start Date: \(activity.fields.startDate)")
-                .padding()
-
-            Text("End Date: \(activity.fields.endDate)")
-                .padding()
-
-            Text("Location: \(activity.fields.location)")
-                .padding()
-
-            Text("Speakers: \(activity.fields.speakers?.joined(separator: ", ") ?? "")")
-                .padding()
-
-            Text("Notes: \(activity.fields.notes ?? "")")
-                .padding()
+            KeyValueRow(key: "Type", value: activity.fields.activity)
+            KeyValueRow(key: "Start Date", value: activity.fields.startDate)
+            KeyValueRow(key: "End Date", value: activity.fields.endDate)
+            KeyValueRow(key: "Location", value: activity.fields.location)
+            KeyValueRow(key: "Speakers", value: activity.fields.speakers?.joined(separator: ", ") ?? "")
+            KeyValueRow(key: "Notes", value: activity.fields.notes ?? "")
         }
+        .padding()
         .navigationTitle("Activity Detail")
     }
 }
+
+struct KeyValueRow: View {
+    var key: String
+    var value: String
+
+    var body: some View {
+        HStack {
+            Text("\(key):")
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.gray)
+
+            Text(value)
+                .font(.body)
+                .foregroundColor(.primary)
+                .lineLimit(nil)
+                .multilineTextAlignment(.leading)
+
+            Spacer()
+        }
+    }
+}
+
 
 
 class EventViewModel: ObservableObject {
@@ -230,15 +257,6 @@ class EventViewModel: ObservableObject {
         }
     }
 }
-
-
-
-// DateFormatter to format date for display
-let dateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "MM/dd/yyyy hh:mma"
-    return formatter
-}()
 
 
 struct ContentView_Previews: PreviewProvider {
